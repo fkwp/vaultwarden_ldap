@@ -75,6 +75,8 @@ pub struct Config {
     // LDAP search config
     ldap_search_base_dn: String,
     ldap_search_filter: String,
+    ldap_search_group_of_names_filter: Option<String>,
+    ldap_search_group_of_names_member_attribut: Option<String>,
     // LDAP record attributes
     ldap_mail_field: Option<String>,
     // Interval syncing config
@@ -169,6 +171,20 @@ impl Config {
 
     pub fn get_ldap_search_filter(&self) -> String {
         self.ldap_search_filter.clone()
+    }
+
+    pub fn get_ldap_search_group_of_names_filter(&self) -> String {
+        match &self.ldap_search_group_of_names_filter {
+            Some(search_group_of_names_filter) => search_group_of_names_filter.clone(),
+            None => String::from(""),
+        }
+    }
+
+    pub fn get_ldap_search_group_of_names_member_attribut(&self) -> String {
+        match &self.ldap_search_group_of_names_member_attribut {
+            Some(search_group_of_names_member_attribut) => search_group_of_names_member_attribut.clone(),
+            None => String::from("member"),
+        }
     }
 
     pub fn get_ldap_mail_field(&self) -> String {

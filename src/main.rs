@@ -87,26 +87,70 @@ fn search_entries(config: &config::Config) -> Result<Vec<SearchEntry>, AnyError>
     )
     .context("LDAP client initialization failed")?;
 
+    // Build list of entries
+    let mut entries = Vec::new();
+
     let mail_field = config.get_ldap_mail_field();
+    let search_group_of_names_filter = config.get_ldap_search_group_of_names_filter();
     let fields = vec!["uid", "givenname", "sn", "cn", mail_field.as_str()];
 
     // Something something error handling
-    let (results, _res) = ldap
-        .with_search_options(SearchOptions::new().deref(DerefAliases::Always))
-        .search(
-            config.get_ldap_search_base_dn().as_str(),
-            Scope::Subtree,
-            config.get_ldap_search_filter().as_str(),
-            fields,
-        )
-        .context("LDAP search failure")?
-        .success()
-        .context("LDAP search usucessful")?;
+    if search_group_of_names_filter.is_empty() {
+        let (results, _res) = ldap
+            .with_search_options(SearchOptions::new().deref(DerefAliases::Always))
+            .search(
+                config.get_ldap_search_base_dn().as_str(),
+                Scope::Subtree,
+                config.get_ldap_search_filter().as_str(),
+                fields.to_vec(),
+            )
+            .context("LDAP search failure")?
+            .success()
+            .context("LDAP search successful")?;
 
-    // Build list of entries
-    let mut entries = Vec::new();
-    for result in results {
-        entries.push(SearchEntry::construct(result));
+        for result in results {
+            entries.push(SearchEntry::construct(result));
+        }
+    } else {
+        let group_of_names_member_attribut = config.get_ldap_search_group_of_names_member_attribut();
+        let (group_of_names_results, _res) = ldap
+            .with_search_options(SearchOptions::new().deref(DerefAliases::Always))
+            .search(
+                config.get_ldap_search_base_dn().as_str(),
+                Scope::Subtree,
+                search_group_of_names_filter.as_str(),
+                vec!["dn", group_of_names_member_attribut.as_str()],
+            )
+            .context("LDAP search (group_of_names) failure")?
+            .success()
+            .context("LDAP search (group_of_names) successful")?;
+
+        for group_of_names in group_of_names_results {
+            let group_of_names_ldap_entry = SearchEntry::construct(group_of_names);
+            println!("Found GroupOfNames: {}", group_of_names_ldap_entry.dn);
+            if let Some(member_cn_array) = group_of_names_ldap_entry
+                .attrs
+                .get(group_of_names_member_attribut.as_str())
+            {
+                for member in member_cn_array {
+                    // println!("{}", &member);
+                    let (results, _res) = ldap
+                        .with_search_options(SearchOptions::new().deref(DerefAliases::Always))
+                        .search(
+                            &member,
+                            Scope::Subtree,
+                            config.get_ldap_search_filter().as_str(),
+                            fields.to_vec(),
+                        )
+                        .context("LDAP search (group_of_names member) failure")?
+                        .success()
+                        .context("LDAP search (group_of_names member) successful")?;
+                    for result in results {
+                        entries.push(SearchEntry::construct(result));
+                    }
+                }
+            }
+        }
     }
 
     Ok(entries)
