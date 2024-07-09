@@ -25,7 +25,7 @@ pub enum ResponseError {
 pub struct User {
     #[serde(rename = "email")]
     email: String,
-    #[serde(rename = "_Status")]
+    #[serde(rename = "_status")]
     status: i32,
 }
 
