@@ -23,7 +23,7 @@ pub enum ResponseError {
 
 #[derive(Debug, Deserialize)]
 pub struct User {
-    #[serde(rename = "Email")]
+    #[serde(rename = "email")]
     email: String,
     #[serde(rename = "_Status")]
     status: i32,
